@@ -41,8 +41,7 @@ class TestOntologySubmissionsController < TestCase
   end
 
   def setup
-    delete_ontologies_and_submissions
-    self.class.before_suite
+    before_suite
   end
 
   def test_submissions_for_given_ontology
