@@ -1,5 +1,5 @@
 x-app: &app
-  image: agroportal/ontologies_api:master
+  image: agroportal/ontologies_api:development
   environment: &env
     # default bundle config resolves to /usr/local/bundle/config inside of the container
     # we are setting it to local app directory if we need to use 'bundle config local'
@@ -7,11 +7,17 @@ x-app: &app
     COVERAGE: 'true' # enable simplecov code coverage
     REDIS_HOST: redis-ut
     REDIS_PORT: 6379
+    REDIS_GOO_CACHE_HOST: redis-ut
+    REDIS_HTTP_CACHE_HOST: redis-ut
+    REDIS_PERSISTENT_HOST: redis-ut
     SOLR_TERM_SEARCH_URL: http://solr-ut:8983/solr
     SOLR_PROP_SEARCH_URL: http://solr-ut:8983/solr
-    GOO_BACKEND_NAME: 4store
-    GOO_PORT: 9000
-    GOO_HOST: 4store-ut
+    GOO_BACKEND_NAME: virtuoso
+    GOO_PORT: 8890
+    GOO_HOST: virtuoso-ut
+    GOO_PATH_DATA: /sparql/
+    GOO_PATH_QUERY: /sparql/
+    GOO_PATH_UPDATE: /sparql/
     MGREP_HOST: mgrep-ut
     MGREP_PORT: 55555
     REPOSITORY_FOLDER: /srv/ontoportal/data/repository
@@ -32,8 +38,6 @@ services:
       <<: *env
       BUNDLE_APP_CONFIG: /srv/ontoportal/ontologies_api/.bundle
 
-    profiles:
-      - 4store
     depends_on:
       solr-ut:
         condition: service_healthy
@@ -41,7 +45,7 @@ services:
         condition: service_healthy
       mgrep-ut:
         condition: service_started
-      4store-ut:
+      virtuoso-ut:
         condition: service_started
       ncbo_cron:
         condition: service_started
@@ -51,18 +55,17 @@ services:
       # bundle volume for hosting gems installed by bundle; it speeds up gem install in local development
       - app_api:/srv/ontoportal/ontologies_api
       - repository:/srv/ontoportal/data/repository
+      - bundle:/srv/ontoportal/bundle
 
   ncbo_cron:
     <<: *app
-    image: agroportal/ncbo_cron:master
+    image: agroportal/ncbo_cron:development
     env_file:
       .env
     environment:
       <<: *env
       BUNDLE_APP_CONFIG: /srv/ontoportal/ncbo_cron/.bundle
     command: "bundle exec bin/ncbo_cron"
-    profiles:
-      - 4store
     volumes:
       - app_cron:/srv/ontoportal/ncbo_cron
       - repository:/srv/ontoportal/data/repository
@@ -70,6 +73,7 @@ services:
       - reports:/srv/ontoportal/data/reports
       - mgrep:/srv/ontoportal/data/mgrep
       - logs:/srv/ontoportal/ncbo_cron/logs
+      - bundle:/srv/ontoportal/bundle
     depends_on:
       solr-ut:
         condition: service_healthy
@@ -77,7 +81,7 @@ services:
         condition: service_healthy
       mgrep-ut:
         condition: service_started
-      4store-ut:
+      virtuoso-ut:
         condition: service_started
 
 
@@ -159,8 +163,6 @@ services:
     ports:
       - 1111:1111
       - 8890:8890
-    profiles:
-      - vo
     healthcheck:
       test: [ "CMD-SHELL", "curl -sf  http://localhost:8890/sparql  || exit 1" ]
       start_period: 10s
@@ -199,3 +201,4 @@ volumes:
   mgrep:
   logs:
   history:
+  bundle:

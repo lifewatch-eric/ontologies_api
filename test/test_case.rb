@@ -28,21 +28,24 @@ require 'rack/test'
 require 'multi_json'
 require 'oj'
 require 'json-schema'
-
+require 'minitest/reporters'
+Minitest::Reporters.use! [Minitest::Reporters::SpecReporter.new(:color => true), Minitest::Reporters::MeanTimeReporter.new]
 MAX_TEST_REDIS_SIZE = 10_000
 
 # Check to make sure you want to run if not pointed at localhost
 safe_hosts = Regexp.new(/localhost|-ut|ncbo-dev*|ncbo-unittest*/)
+
 def safe_redis_hosts?(sh)
   return [LinkedData.settings.http_redis_host,
-   Annotator.settings.annotator_redis_host,
-   LinkedData.settings.goo_redis_host].select { |x|
+          Annotator.settings.annotator_redis_host,
+          LinkedData.settings.goo_redis_host].select { |x|
     x.match(sh)
   }.length == 3
 end
+
 unless LinkedData.settings.goo_host.match(safe_hosts) &&
-        safe_redis_hosts?(safe_hosts) &&
-        LinkedData.settings.search_server_url.match(safe_hosts)
+  safe_redis_hosts?(safe_hosts) &&
+  LinkedData.settings.search_server_url.match(safe_hosts)
   print "\n\n================================== WARNING ==================================\n"
   print "** TESTS CAN BE DESTRUCTIVE -- YOU ARE POINTING TO A POTENTIAL PRODUCTION/STAGE SERVER **\n"
   print "Servers:\n"
@@ -77,8 +80,7 @@ class AppUnit < Minitest::Test
   def backend_4s_delete
     if count_pattern("?s ?p ?o") < 400000
       puts 'clear backend & index'
-      raise StandardError, 'Too many triples in KB, does not seem right to run tests' unless
-        count_pattern('?s ?p ?o') < 400000
+      raise StandardError, 'Too many triples in KB, does not seem right to run tests' unless count_pattern('?s ?p ?o') < 400000
 
       graphs = Goo.sparql_query_client.query("SELECT DISTINCT  ?g WHERE  { GRAPH ?g { ?s ?p ?o . } }")
       graphs.each_solution do |sol|
@@ -113,8 +115,6 @@ class AppUnit < Minitest::Test
     after_suite
     super
   end
-
-
 
   def _run_suite(suite, type)
     begin
@@ -160,17 +160,16 @@ class TestCase < AppUnit
   # @option options [TrueClass, FalseClass] :process_submission Parse the test ontology file
   def create_ontologies_and_submissions(options = {})
     if options[:process_submission] && options[:process_options].nil?
-      options[:process_options] =  { process_rdf: true, extract_metadata: false, generate_missing_labels: false }
+      options[:process_options] = { process_rdf: true, extract_metadata: false, generate_missing_labels: false }
     end
     LinkedData::SampleData::Ontology.create_ontologies_and_submissions(options)
   end
-
 
   def agent_data(type: 'organization')
     schema_agencies = LinkedData::Models::AgentIdentifier::IDENTIFIER_SCHEMES.keys
     users = LinkedData::Models::User.all
     users = [LinkedData::Models::User.new(username: "tim", email: "tim@example.org", password: "password").save] if users.empty?
-    test_identifiers = 5.times.map { |i| { notation: rand.to_s[2..11], schemaAgency: schema_agencies.sample.to_s } }
+    test_identifiers = generate_test_identifier(schema_agencies)
     user = users.sample.id.to_s
 
     i = rand.to_s[2..11]
@@ -206,13 +205,13 @@ class TestCase < AppUnit
   # @param [String] jsonData a json string that will be parsed by MultiJson.load
   # @param [String] jsonSchemaString a json schema string that will be parsed by MultiJson.load
   # @param [boolean] list set it true for jsonObj array of items to validate against jsonSchemaString
-  def validate_json(jsonData, jsonSchemaString, list=false)
+  def validate_json(jsonData, jsonSchemaString, list = false)
     schemaVer = :draft3
     jsonObj = MultiJson.load(jsonData)
     jsonSchema = MultiJson.load(jsonSchemaString)
     assert(
-        JSON::Validator.validate(jsonSchema, jsonObj, :list => list, :version => schemaVer),
-        JSON::Validator.fully_validate(jsonSchema, jsonObj, :list => list, :version => schemaVer, :validate_schema => true).to_s
+      JSON::Validator.validate(jsonSchema, jsonObj, list: list, version: schemaVer),
+      JSON::Validator.fully_validate(jsonSchema, jsonObj, list: list, version: schemaVer, validate_schema: true).to_s
     )
   end
 
@@ -236,10 +235,9 @@ class TestCase < AppUnit
     LinkedData.settings.enable_security = true
   end
 
-  def self.reset_security(old_security =  @@old_security_setting)
+  def self.reset_security(old_security = @@old_security_setting)
     LinkedData.settings.enable_security = old_security
   end
-
 
   def self.make_admin(user)
     user.bring_remaining
@@ -261,6 +259,34 @@ class TestCase < AppUnit
   end
 
   private
+
+  def generate_test_identifier(schema_agencies)
+    test_identifiers = 5.times.map do
+      agency = schema_agencies.sample.to_s
+
+      notation =
+        case agency
+        when "ROR"
+          # 9-character base32 (digits + lowercase letters)
+          Array.new(9) { [*'0'..'9', *'a'..'z'].sample }.join
+        when "ORCID"
+          # 4-4-4-3digit+check
+          "#{rand(1000..9999)}-#{rand(1000..9999)}-#{rand(1000..9999)}-#{format('%04d', rand(0..9999))}"[0..18]
+        when "ISNI"
+          # 16 digits, last char may be X
+          body = Array.new(15) { rand(0..9) }.join
+          check = [rand(0..9).to_s, "X"].sample
+          body + check
+        when "GRID"
+          # grid.NNNN.x or xx (hex suffix)
+          "grid.#{rand(1000..9999)}.#{rand(16).to_s(16)}"
+        end
+
+      { notation: notation, schemaAgency: agency }
+    end
+    return test_identifiers
+  end
+
   def port_in_use?(port)
     server = TCPServer.new(port)
     server.close
