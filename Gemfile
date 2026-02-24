@@ -1,5 +1,5 @@
 source 'https://rubygems.org'
-gem 'activesupport'
+gem 'activesupport', "~> 7.0.8"
 gem 'bigdecimal'
 gem 'json-schema'
 gem 'multi_json'
@@ -21,7 +21,7 @@ gem 'google-protobuf', '3.25.3'
 gem 'grpc', '1.70.1'
 gem 'net-ftp'
 gem 'json-ld', '~> 3.2.0'
-gem 'rdf-raptor', github:'ruby-rdf/rdf-raptor', ref: '6392ceabf71c3233b0f7f0172f662bd4a22cd534' # use version 3.3.0 when available
+gem 'rdf-raptor', git: 'https://www.github.com/ruby-rdf/rdf-raptor.git', ref: '6392ceabf71c3233b0f7f0172f662bd4a22cd534' # use version 3.3.0 when available
 
 # Rack middleware
 gem 'ffi', '1.15.0'
@@ -52,15 +52,15 @@ gem 'pandoc-ruby'
 
 # NCBO gems (can be from a local dev path or from rubygems/git)
 gem 'ncbo_annotator', git: 'https://github.com/ontoportal-lirmm/ncbo_annotator.git', branch: 'development'
-gem 'ncbo_cron', git: 'https://github.com/lifewatch-eric/ncbo_cron.git', branch: 'development'
+gem 'ncbo_cron', git: 'https://github.com/ontoportal-lirmm/ncbo_cron.git', branch: 'development'
 gem 'ncbo_ontology_recommender', git: 'https://github.com/ontoportal-lirmm/ncbo_ontology_recommender.git', branch: 'development'
-gem 'ontologies_linked_data', github: 'https://github.com/lifewatch-eric/ontologies_linked_data.git', branch: 'development'
+gem 'ontologies_linked_data', git: 'https://github.com/lifewatch-eric/ontologies_linked_data.git', branch: 'update/align-to-agroportal-v3.1.1'
 gem 'goo', github: 'ontoportal-lirmm/goo', branch: 'development'
 gem 'sparql-client', github: 'ontoportal-lirmm/sparql-client', branch: 'development'
+gem 'shotgun', github: 'syphax-bouazzouni/shotgun', branch: 'master'
 
 group :development do
   # bcrypt_pbkdf and ed35519 is required for capistrano deployments when using ed25519 keys; see https://github.com/miloserdow/capistrano-deploy/issues/42
-  gem 'shotgun', github: 'syphax-bouazzouni/shotgun', branch: 'master'
   gem 'rubocop'
 end
 
